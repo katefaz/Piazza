@@ -1,16 +1,9 @@
 from django.db import models
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 from django.contrib.auth.models import User
 from rest_framework.fields import CurrentUserDefault
 import datetime
-
-#class MessageManager(models.Manager):
-#    """QuerySet manager needed to handle properties"""
-
-#    def get_queryset(self):
-#        """Overrides the models.Manager method"""
-#        qs = super(MessageManager, self).get_queryset()
-#        return qs
 
 class Message(models.Model):
 
@@ -35,10 +28,20 @@ class Message(models.Model):
         return self.message_heading
 
 class Comment(models.Model):
+
+    def validate_message_active(value):
+        """
+        Check that the related message is still active
+        """
+        message = Message.objects.get(pk=value.message_id)
+        if message.message_status == False:
+            raise ValidationError("Comment must be to an active message")
+        return value
+
     comment_id = models.AutoField(primary_key = True)
     comment_create_dt = models.DateTimeField(auto_now_add=True)
     comment = models.TextField()
-    message_id = models.ForeignKey(Message, on_delete=models.CASCADE, related_name = 'comments')
+    message_id = models.ForeignKey(Message, on_delete=models.CASCADE, related_name = 'comments', validators = [validate_message_active])
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='comments_made')
 
     class Meta:
@@ -46,14 +49,6 @@ class Comment(models.Model):
 
     def __str__(self):
         return self.comment
-
-    def save(self, *args, **kwargs):
-        # don't save if the message has expired already
-        if self.message_id.message_status == False:
-            return
-        else:
-            super().save(*args, **kwargs)
-    
 
 class Topic(models.Model):
     choices = ['Tech', 'Politics', 'Health', 'Sport'] 
@@ -64,19 +59,32 @@ class Topic(models.Model):
 
 
 class Reaction(models.Model):
+    
+    def validate_reaction(value):
+        """
+        Check that reaction is either Like or Dislike
+        """
+        if (value not in ['Like', 'Dislike']) and value:
+            raise ValidationError("Reaction must be either Like or Dislike")
+        return value
+    
+    def validate_message_active(value):
+        """
+        Check that the related message is still active
+        """
+        if type(value)=='int':
+            message = Message.objects.get(pk=value)
+        else: 
+            message = Message.objects.get(pk=int(value.message_id))
+        if message.message_status == False:
+            raise ValidationError("Reaction must be to an active message")
+        return value
+
     choices = ['Like', 'Dislike'] 
-    reaction = models.CharField(choices, max_length = 7, blank=True, editable=True)
-    message_id = models.ForeignKey(Message, on_delete=models.CASCADE, related_name = 'reactions')
+    reaction = models.CharField(choices, max_length = 7, blank=True, editable=True, validators = [validate_reaction])
+    message_id = models.ForeignKey(Message, on_delete=models.CASCADE, related_name = 'reactions', validators = [validate_message_active])
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reactions_made')
 
-    
-    def save(self, *args, **kwargs):
-        # don't save if the message has expired already
-        if self.message_id.message_status == False:
-            return
-        else:
-            super().save(*args, **kwargs)
-    
     def __str__(self):
         return self.reaction
         

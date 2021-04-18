@@ -24,9 +24,9 @@ class MessageFilter(django_filters.FilterSet):
 
     def filter_message_active(self, queryset, name, value):
         if value==True:
-            queryset = queryset.filter(message_expires__gte=datetime.datetime.now())
+            queryset = queryset.filter(message_expires__gte=datetime.datetime.now().astimezone())
         elif value==False:
-            queryset = queryset.filter(message_expires__lt=datetime.datetime.now())
+            queryset = queryset.filter(message_expires__lt=datetime.datetime.now().astimezone())
         else:
             queryset = queryset
         return queryset

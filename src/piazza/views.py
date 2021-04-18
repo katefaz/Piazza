@@ -4,7 +4,7 @@ from rest_framework import generics, mixins
 from rest_framework import permissions
 from .models import Message, Comment, Topic, Reaction
 from .serializers import MessageSerializer, CommentSerializer, TopicSerializer, ReactionSerializer
-from .permissions import IsOwner, IsNotMessageOwner
+from .permissions import IsOwner
 from .filters import MessageFilter
 from django.shortcuts import render
 from django.views import generic
@@ -28,9 +28,12 @@ class CommentDetail(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated, IsOwner]
 
 class MessageList(generics.ListCreateAPIView):
-    # view for browsing all messages
-    # includes custom filter to add functionality for filtering by topic
-    # and by expired vs not expired messages
+    '''
+    View for browsing all messages
+     includes instruction to use MessageFilter to add functionality for filtering by topic,
+     by expired vs not expired messages, and to pull the message with most reactions
+    '''
+
     queryset = Message.objects.all().annotate(
         num_reactions = Count('reactions'),
         num_likes = Count('reactions', filter=Q(reactions__reaction='Like')), \
@@ -49,11 +52,6 @@ class MessageDetail(generics.RetrieveUpdateDestroyAPIView):
 class ReactionList(generics.ListCreateAPIView):
     queryset = Reaction.objects.all()
     serializer_class = ReactionSerializer
-    permission_classes = [permissions.IsAuthenticated, IsNotMessageOwner]
+    permission_classes = [permissions.IsAuthenticated]
     filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
 
-#class IndexView(generic.ListView):
-#    template_name = 'piazza/index.html'
-#    context_object_name = 'latest_message_list'
-#    def get_queryset(self):
-#        return Message.objects.order_by('-message_create_dt')
